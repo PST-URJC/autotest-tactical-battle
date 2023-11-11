@@ -115,6 +115,6 @@ def main():
 
     child.expect(pexpect.EOF)
     child.wait()
-    
+
 if __name__ == '__main__':
     main()
