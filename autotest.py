@@ -2,21 +2,23 @@ import pexpect
 import sys
 
 POSICIONAMIENTO_ESPERADO = ['(?i)[M,m].dico', '(?i)[A,a]rtillero', '(?i)[F,f]rancotirador', '(?i)[I,i]nteligencia']
-ACCIONES_INICIALES_ESPERADAS = ['(?i)[M,m]over.*[M,m].dico',
-                                '(?i)[M,m]over.*[A,a]rtillero',
+ACCIONES_INICIALES_ESPERADAS = ['[0-9]{1} {0,}: {0,}[M,m]over.*[M,m].dico',
+                                '[0-9]{1} {0,}: {0,}[M,m]over.*[A,a]rtillero',
                                 '[0-9]{1} {0,}: {0,}[D,d]isparar {1,}[E,e][N,n] {1,}.rea.*([A,a]rtillero)',
-                                '(?i)[M,m]over.*[F,f]rancotirador',
+                                '[0-9]{1} {0,}: {0,}[M,m]over.*[F,f]rancotirador',
                                 '[0-9]{1} {0,}: {0,}[D,d]isparar {1,}[A,a] {1,}[U,u][N,n][A,a] {1,}[C,c]elda.*([F,f]rancotirador)',
-                                '(?i)[M,m]over.*[I,i]nteligencia',
-                                '(?i)[R,e]velar.*[I,i]nteligencia']
+                                '[0-9]{1} {0,}: {0,}[M,m]over.*[I,i]nteligencia',
+                                '[0-9]{1} {0,}: {0,}[R,r,]evelar.*[I,i]nteligencia']
 ACCIONES_INICIALES_INDICES = ["1", "2", "3", "4", "5", "6", "7"]
 ACCIONES_INICIALES_INDICE_MOVIMIENTO = ["1", "2", "4", "6"]
 ACCIONES_INICIALES_INDICE_DISPAROS = [2, 4]
+ACCIONES_INICIALES_INDICE_INTELIGENCIA = 6
 
 FALLO_CELDA_INCORRECTA = ['(?i)[U,u][P,p][S,s].*[I,i][N,n][C,c][O,o][R,r][R,r][E,e][C,c][T,t][A,a,O,o].*\n']
 FALLO_CELDA_OCUPADA = ['(?i)[U,u][P,p][S,s].*[O,o][C,c][U,u][P,p][A,a][D,d][A,a].*\n']
 PETICION_CELDA_MOVER = ['(?i)[C,c][E,e][L,l][D,d][A,a].*[M,m][O,o][V,v][E,e][R,r]']
 MENSAJE_NINGUN_PERSONAJE_HERIDO = "(?i)[N,n]ing.n {1,}[P,p]ersonaje {1,}[H,h]a {1,}[S,s]ido {1,}[H,h]erido"
+MENSAJE_NINGUN_PERSONAJE_REVELADO = "(?i)[N,n]ing.n {1,}[P,p]ersonaje {1,}[H,h]a {1,}[S,s]ido {1,}[R,r]evelado"
 INDICE_ACCIONES_ESPERADAS = ['1', '2', '3', '4']
 INTRO = ['[I,i][N,n][T,t][R,r][O,o]']
 JUGADORES = ["Jugador1", "Jugador2"]
@@ -108,6 +110,23 @@ class TestGame():
                 self.child.expect(MENSAJE_NINGUN_PERSONAJE_HERIDO)
                 self.salta_doble_intro()
 
+    def prueba_inteligencia_fallida(self):
+        # Estado Inicial J1: [MC1(1/1), AC2(2/2), FC3(3/3), IC4(2/2)]
+        # Estado Final J1:   [MC1(1/1), AC2(2/2), FC3(3/3), IC4(2/2)]
+        # Estado Inicial J2: [MD1(1/1), AD2(2/2), FD3(3/3), ID4(2/2)]
+        # Estado Final J2:   [MD1(1/1), AD2(2/2), FD3(3/3), ID4(2/2)]
+        # Chequeo incorrecto de reporte de inteligencia
+        # Se chequea informe y resultado acción
+        for j in JUGADORES:
+            # Envio de opcion (disparo artillero/disparo francotirador)
+            self.child.expect(ACCIONES_INICIALES_ESPERADAS[ACCIONES_INICIALES_INDICE_INTELIGENCIA])
+            self.child.sendline(str(self.get_re_index()))
+            # Nos pide donde mirar, miramos celda vacia con alrededores vacios (cualquiera celda en fila A)
+            self.child.sendline("A2")
+            # Esperamos mensaje "Ningún personaje ha sido avistado"
+            self.child.expect(MENSAJE_NINGUN_PERSONAJE_REVELADO)
+            self.salta_doble_intro()
+
 def main():
     # TODO: set executable configurable
     child = pexpect.spawnu('python ./jugar.py', timeout=1)
@@ -124,7 +143,7 @@ def main():
     # Estado Inicial J2: [MD1(1/1), AD2(2/2), FD3(3/3), ID4(2/2)]
     # Estado Final J2:   [MD1(1/1), AD2(2/2), FD3(3/3), ID4(2/2)]
     test_game.prueba_disparos_fallidos()
-
+    test_game.prueba_inteligencia_fallida()
 
     # J2: Disparo de Artillero (Fallo)
     # Estado Inicial J1: [MC1(1/1), AC2(2/2), FC3(3/3), IC4(2/2)]
