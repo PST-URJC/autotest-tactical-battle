@@ -184,22 +184,19 @@ class TestGame():
         # Estado Inicial J2: [MD1(1/1), AD2(2/2), FD3(3/3), ID4(2/2)]
         # Estado Final J2:   [MD1(1/1), AD2(1/2), FD3(2/3), ID4(2/2)]
         # Chequeo incorrecto de reporte de inteligencia
-        for j in JUGADORES:
-            # Envio de opcion (disparo artillero/disparo francotirador)
-            self.child.expect(ACCIONES_INICIALES_ESPERADAS[ACCIONES_INICIALES_INDICE_ARTILLERO])
-            self.child.sendline(str(self.get_re_index()))
-            # Nos pide donde disparar, disparamos celda que sabemos ocupada, pero sin matar a Médico
-            self.child.sendline("D2")
-            # Esperamos mensaje:
-            # "--------- RESULTADO DE LA ACCIÓN ----------
-            # Artillero ha sido herido en D2 [Vida restante:1]
-            # Francotirador ha sido herido en D3 [Vida restante:2]
-            a = EstadoPersonaje("Artillero", "D2", 1, "Herido")
-            f = EstadoPersonaje("Francotirador", "D3", 2, "Herido")
-            ResultadoAccionChequeo(self.child, [a,f])
-
-            self.child.expect(MENSAJE_NINGUN_PERSONAJE_REVELADO)
-            self.salta_doble_intro()
+        # Envio de opcion (disparo artillero/disparo francotirador)
+        self.child.expect(ACCIONES_INICIALES_ESPERADAS[ACCIONES_INICIALES_INDICE_ARTILLERO])
+        self.child.sendline(str(self.get_re_index()))
+        # Nos pide donde disparar, disparamos celda que sabemos ocupada, pero sin matar a Médico
+        self.child.sendline("D2")
+        # Esperamos mensaje:
+        # "--------- RESULTADO DE LA ACCIÓN ----------
+        # Artillero ha sido herido en D2 [Vida restante:1]
+        # Francotirador ha sido herido en D3 [Vida restante:2]
+        a = EstadoPersonaje("Artillero", "D2", 1, "Herido")
+        f = EstadoPersonaje("Francotirador", "D3", 2, "Herido")
+        ResultadoAccionChequeo(self.child, [a,f])
+        self.salta_doble_intro()
 
 def main():
     # TODO: set executable configurable
@@ -220,8 +217,20 @@ def main():
 
     # Turno actual: J1:
     # Disparo de Artillero (Acierto). Lo probamos para que se active habilidad Médico J2
+    # Estado Inicial J1: [MC1(1/1), AC2(2/2), FC3(3/3), IC4(2/2)]
+    # Estado Final J1:   [MC1(1/1), AC2(2/2), FC3(3/3), IC4(2/2)]
+    # Estado Inicial J2: [MD1(1/1), AD2(2/2), FD3(3/3), ID4(2/2)]
+    # Estado Final J2:   [MD1(1/1), AD2(1/2), FD3(2/3), ID4(2/2)]
     test_game.prueba_disparo_acierto_artillero_j1_a_j2()
 
+    # Turno actual: J2:
+    # Curacion médico (curamos a francotirador)
+    # Estado Inicial J1: [MC1(1/1), AC2(2/2), FC3(3/3), IC4(2/2)]
+    # Estado Final J1:   [MC1(1/1), AC2(2/2), FC3(3/3), IC4(2/2)]
+    # Estado Inicial J2: [MD1(1/1), AD2(2/2), FD3(3/3), ID4(2/2)]
+    # Estado Final J2:   [MD1(1/1), AD2(1/2), FD3(3/3), ID4(2/2)]
+
+    # Turno actual: J2:
     # Estado Inicial J1: [MC1(1/1), AC2(2/2), FC3(3/3), IC4(2/2)]
     # Estado Final J1:   [MC1(1/1), AC2(2/2), FC3(3/3), IC4(2/2)]
 
