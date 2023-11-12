@@ -18,6 +18,16 @@ ACCIONES_INICIALES_INDICE_FRANCOTIRADOR = 4
 ACCIONES_INICIALES_INDICE_DISPAROS = [ACCIONES_INICIALES_INDICE_ARTILLERO, ACCIONES_INICIALES_INDICE_FRANCOTIRADOR]
 ACCIONES_INICIALES_INDICE_INTELIGENCIA = 6
 
+ACCIONES_CON_CURACION_ESPERADAS = ['[0-9]{1} {0,}: {0,}[M,m]over.*[M,m].dico',
+                                   '[0-9]{1} {0,}: {0,}[C,c]urar.*[C,c]ompa.ero',
+                                   '[0-9]{1} {0,}: {0,}[M,m]over.*[A,a]rtillero',
+                                   '[0-9]{1} {0,}: {0,}[D,d]isparar {1,}[E,e][N,n] {1,}.rea.*([A,a]rtillero)',
+                                   '[0-9]{1} {0,}: {0,}[M,m]over.*[F,f]rancotirador',
+                                   '[0-9]{1} {0,}: {0,}[D,d]isparar {1,}[A,a] {1,}[U,u][N,n][A,a] {1,}[C,c]elda.*([F,f]rancotirador)',
+                                   '[0-9]{1} {0,}: {0,}[M,m]over.*[I,i]nteligencia',
+                                   '[0-9]{1} {0,}: {0,}[R,r,]evelar.*[I,i]nteligencia']
+ACCIONES_CON_CURACION_INDICE_CURACION = 1
+
 FALLO_CELDA_INCORRECTA = ['(?i)[U,u][P,p][S,s].*[I,i][N,n][C,c][O,o][R,r][R,r][E,e][C,c][T,t][A,a,O,o].*\n']
 FALLO_CELDA_OCUPADA = ['(?i)[U,u][P,p][S,s].*[O,o][C,c][U,u][P,p][A,a][D,d][A,a].*\n']
 PETICION_CELDA_MOVER = ['(?i)[C,c][E,e][L,l][D,d][A,a].*[M,m][O,o][V,v][E,e][R,r]']
@@ -26,6 +36,7 @@ MENSAJE_NINGUN_PERSONAJE_REVELADO = "(?i)[N,n]ing.n {1,}[P,p]ersonaje {1,}[H,h]a
 MENSAJE_PERSONAJE_HERIDO = "[H,h]a {1,}[S,s]ido {1,}[H,h]erido"
 MENSAJE_PERSONAJE_MUERTO = "[H,h]a {1,}[M,m]uerto"
 MENSAJE_PERSONAJE_ELIMINADO = "[H,h]a {1,}[M,m]uerto"
+MENSAJE_SELECCIONA_PERSONAJE_A_CURAR = "[S,s]elecciona {1,}[E,e]l {1,}[P,p]ersonaje {1,}[A,a] {1,}[C,c]urar"
 
 RESULTADO_ACCION_INICIAL = "[R,r][E,e][S,s][U,u][L,l][T,t][A,a][D,d][O,o] {1,}[D,d][E,e] {1,}[L,l][A,a] {1,}[A,a][C,c][C,c][I,i].[N,n]"
 
@@ -44,15 +55,41 @@ MOVIMIENTOS_POR_JUGADOR = {"Jugador1": MOVIMIENTOS_JUGADOR_1, "Jugador2": MOVIMI
 class EstadoPersonaje():
     personaje = ""
     posicion = ""
-    vida_restante = 0
     situacion = ""
+    vida_restante = 0
+    vida_total = 0
 
-    def __init__(self, personaje, posicion, vida_restante, situacion):
+    def __init__(self, personaje, posicion, situacion, vida_restante, vida_total):
         self.personaje = personaje
         self.posicion = posicion
-        self.vida_restante = vida_restante
         self.situacion = situacion
+        self.vida_restante = vida_restante
+        self.vida_total = vida_total
 
+class MenuCuracionChequeo():
+    child = None
+
+    def get_vida_restante(self, vida_restante, vida_total):
+        return "\[" + str(vida_restante) + '/' + str(vida_total) + "\]"
+    
+    def __init__(self, child):
+        self.child = child
+
+    def chequear_curacion(self, lista_estado_personajes, personaje_cuyo_indice_devolver):
+        personajes_e_indices_esperado = [MENSAJE_SELECCIONA_PERSONAJE_A_CURAR]
+        # Para cada personaje esperamos:
+        # 1 - Artillero [1/2]
+        for estado_personaje in lista_estado_personajes:
+            personajes_e_indices_esperado.append(MAPA_PERSONAJES[estado_personaje.personaje] + " {1,}" + \
+                                                 self.get_vida_restante(estado_personaje.vida_restante, estado_personaje.vida_total))
+
+        # Chequeo una vez por linea esperada
+        indice = 0
+        for accion in range(0, len(personajes_e_indices_esperado)-1):
+            i = self.child.expect(personajes_e_indices_esperado)
+            if personaje_cuyo_indice_devolver in self.child.match.group():
+                indice = i
+        return indice
 
 class ResultadoAccionChequeo():
     child = None
@@ -183,7 +220,6 @@ class TestGame():
     def prueba_disparo_acierto_artillero_j1_a_j2(self):
         # Estado Inicial J2: [MD1(1/1), AD2(2/2), FD3(3/3), ID4(2/2)]
         # Estado Final J2:   [MD1(1/1), AD2(1/2), FD3(2/3), ID4(2/2)]
-        # Chequeo incorrecto de reporte de inteligencia
         # Envio de opcion (disparo artillero/disparo francotirador)
         self.child.expect(ACCIONES_INICIALES_ESPERADAS[ACCIONES_INICIALES_INDICE_ARTILLERO])
         self.child.sendline(str(self.get_re_index()))
@@ -193,9 +229,25 @@ class TestGame():
         # "--------- RESULTADO DE LA ACCIÓN ----------
         # Artillero ha sido herido en D2 [Vida restante:1]
         # Francotirador ha sido herido en D3 [Vida restante:2]
-        a = EstadoPersonaje("Artillero", "D2", 1, "Herido")
-        f = EstadoPersonaje("Francotirador", "D3", 2, "Herido")
+        a = EstadoPersonaje("Artillero", "D2", "Herido", 1, 2)
+        f = EstadoPersonaje("Francotirador", "D3", "Herido", 2, 3)
         ResultadoAccionChequeo(self.child, [a,f])
+        self.salta_doble_intro()
+
+    def prueba_curacion_j2(self):
+        # Chequeo curacion
+        # Envio de opcion (curar compañero)
+        self.child.expect(ACCIONES_CON_CURACION_ESPERADAS[ACCIONES_CON_CURACION_INDICE_CURACION])
+        self.child.sendline(str(self.get_re_index()))
+        # Nos pide a quien curar:
+        # 1 - Artillero [1/2]
+        # 2 - Francotirador [2/3]
+        a = EstadoPersonaje("Artillero", "D2", "Herido", 1, 2)
+        f = EstadoPersonaje("Francotirador", "D3", "Herido", 2, 3)
+        indice_francotirador = MenuCuracionChequeo(self.child).chequear_curacion([a, f], "Francotirador")
+        self.child.sendline(str(indice_francotirador))
+        # No se da información una vez curado. Habría que mirar
+        # en el próximo informe
         self.salta_doble_intro()
 
 def main():
@@ -227,8 +279,9 @@ def main():
     # Curacion médico (curamos a francotirador)
     # Estado Inicial J1: [MC1(1/1), AC2(2/2), FC3(3/3), IC4(2/2)]
     # Estado Final J1:   [MC1(1/1), AC2(2/2), FC3(3/3), IC4(2/2)]
-    # Estado Inicial J2: [MD1(1/1), AD2(2/2), FD3(3/3), ID4(2/2)]
+    # Estado Inicial J2: [MD1(1/1), AD2(1/2), FD3(2/3), ID4(2/2)]
     # Estado Final J2:   [MD1(1/1), AD2(1/2), FD3(3/3), ID4(2/2)]
+    test_game.prueba_curacion_j2()
 
     # Turno actual: J2:
     # Estado Inicial J1: [MC1(1/1), AC2(2/2), FC3(3/3), IC4(2/2)]
