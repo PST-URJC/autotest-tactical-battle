@@ -39,6 +39,7 @@ MENSAJE_PERSONAJE_ELIMINADO = "[H,h]a {1,}[S,s]ido {1,}[E,e]liminado"
 MENSAJE_PERSONAJE_AVISTADO = "[H,h]a {1,}[S,s]ido {1,}[A,a]vistado"
 MENSAJE_SELECCIONA_PERSONAJE_A_CURAR = "[S,s]elecciona {1,}[E,e]l {1,}[P,p]ersonaje {1,}[A,a] {1,}[C,c]urar"
 MENSAJE_COORDENADAS_ZONA_OBSERVACION = "[I,i]ndica las coordenadas de la esquina superior izquierda de la zona de observaci.n"
+MENSAJE_JUGADOR1_GANA_PARTIDA = "(?i)Jugador {0,}1 [H,h]a [G,g]anado [L,l]a [P,p]artida"
 
 RESULTADO_ACCION_INICIAL = "[R,r][E,e][S,s][U,u][L,l][T,t][A,a][D,d][O,o] {1,}[D,d][E,e] {1,}[L,l][A,a] {1,}[A,a][C,c][C,c][I,i].[N,n]"
 
@@ -73,7 +74,7 @@ class MenuCuracionChequeo():
 
     def get_vida_restante(self, vida_restante, vida_total):
         return "\[" + str(vida_restante) + '/' + str(vida_total) + "\]"
-    
+
     def __init__(self, child):
         self.child = child
 
@@ -267,7 +268,7 @@ class TestGame():
         self.child.sendline("D1")
         # "--------- RESULTADO DE LA ACCIÓN ----------
         # Medico ha sido eliminado
-        m = EstadoPersonaje("Medico", "-", "Eliminado", 99, 99)
+        m = EstadoPersonaje("Medico", "-", "Eliminado", 0, 0)
         ResultadoAccionChequeo(self.child, [m])
         self.salta_doble_intro()
 
@@ -285,11 +286,65 @@ class TestGame():
         # "--------- RESULTADO DE LA ACCIÓN ----------
         # Artillero ha sido avistado en C2
         # Francotirador ha sido avistado en C3
-        a = EstadoPersonaje("Artillero", "C2", "Avistado", 99, 99)
-        f = EstadoPersonaje("Francotirador", "C3", "Avistado", 99, 99)
+        a = EstadoPersonaje("Artillero", "C2", "Avistado", 0, 0)
+        f = EstadoPersonaje("Francotirador", "C3", "Avistado", 0, 0)
         ResultadoAccionChequeo(self.child, [a,f])
         self.salta_doble_intro()
 
+    def prueba_disparo_segundo_acierto_artillero_j1_a_j2(self):
+        # Turno actual: J1:
+        # Disparo de Artillero (Acierto). Matamos artillero contrario y herimos otra vez a Francotirador.
+        # Enfriamiento: Francotirador
+        # Estado Inicial J1: [MC1(1/1), AC2(2/2), FC3(3/3), IC4(2/2)]
+        # Estado Final J1:   [MC1(1/1), AC2(2/2), FC3(3/3), IC4(2/2)]
+        # Estado Inicial J2: [AD2(1/2), FD3(3/3), ID4(2/2)]
+        # Estado Final J2:   [FD3(2/3), ID4(2/2)]
+        self.child.expect(ACCIONES_INICIALES_ESPERADAS[ACCIONES_INICIALES_INDICE_ARTILLERO])
+        self.child.sendline(str(self.get_re_index()))
+        # Nos pide donde disparar, disparamos celda que sabemos ocupada, pero sin matar a Médico
+        self.child.sendline("D2")
+        # Esperamos mensaje:
+        # "--------- RESULTADO DE LA ACCIÓN ----------
+        # Artillero ha sido eliminado
+        # Francotirador ha sido herido en D3 [Vida restante:1]
+        a = EstadoPersonaje("Artillero", "D2", "Eliminado", 1, 2)
+        f = EstadoPersonaje("Francotirador", "D3", "Herido", 2, 3)
+        ResultadoAccionChequeo(self.child, [a,f])
+        self.salta_doble_intro()
+
+    def prueba_disparo_acierto_francotirador_j2_a_j1(self):
+        # Turno actual: J2:
+        # Disparo de Francotirador (Acierto). Hemos avistado el Artillero en C2. Lo matamos
+        # Enfriamiento: Inteligencia
+        # Estado Inicial J1: [MC1(1/1), AC2(2/2), FC3(3/3), IC4(2/2)]
+        # Estado Final J1:   [MC1(1/1), FC3(3/3), IC4(2/2)]
+        # Estado Inicial J2: [MD1(1/1), AD2(1/2), FD3(2/3), ID4(2/2)]
+        # Estado Final J2: [MD1(1/1), AD2(1/2), FD3(2/3), ID4(2/2)]
+        self.child.expect(ACCIONES_INICIALES_ESPERADAS[ACCIONES_INICIALES_INDICE_FRANCOTIRADOR])
+        self.child.sendline(str(self.get_re_index()))
+        self.child.sendline("C2")
+        # "--------- RESULTADO DE LA ACCIÓN ----------
+        # Artillero ha sido eliminado
+        a = EstadoPersonaje("Artillero", "-", "Eliminado", 0, 0)
+        ResultadoAccionChequeo(self.child, [a])
+        self.salta_doble_intro()
+
+    def prueba_disparo_segundo_acierto_francotirador_j1_a_j2(self):
+        # Turno actual: J1:
+        # Disparo de Francotirador (Acierto). Matamos francotirador contrario y ganamos partida
+        # Enfriamiento: Artillero
+        # Estado Inicial J1: [MC1(1/1), AC2(2/2), FC3(3/3), IC4(2/2)]
+        # Estado Final J1:   [MC1(1/1), AC2(2/2), FC3(3/3), IC4(2/2)]
+        # Estado Inicial J2: [FD3(2/3), ID4(2/2)]
+        # Estado Final J2:   [ID4(2/2)]
+        self.child.expect(ACCIONES_INICIALES_ESPERADAS[ACCIONES_INICIALES_INDICE_FRANCOTIRADOR])
+        self.child.sendline(str(self.get_re_index()))
+        self.child.sendline("D3")
+        # "--------- RESULTADO DE LA ACCIÓN ----------
+        # Francotirador ha sido eliminado
+        f = EstadoPersonaje("Francotirador", "-", "Eliminado", 0, 0)
+        ResultadoAccionChequeo(self.child, [f])
+        self.child.expect(MENSAJE_JUGADOR1_GANA_PARTIDA)
 
 def main():
     # TODO: set executable configurable
@@ -342,19 +397,34 @@ def main():
     # Estado Final J2:   [AD2(1/2), FD3(3/3), ID4(2/2)]
     test_game.prueba_avistamiento_j2_a_j1()
 
-    # J1: Disparo de Francotirador (Acierto)
+    # Turno actual: J1:
+    # Disparo de Artillero (Acierto). Matamos artillero contrario y herimos otra vez a Francotirador.
+    # Enfriamiento: Francotirador
+    # Estado Inicial J1: [MC1(1/1), AC2(2/2), FC3(3/3), IC4(2/2)]
+    # Estado Final J1:   [MC1(1/1), AC2(2/2), FC3(3/3), IC4(2/2)]
+    # Estado Inicial J2: [AD2(1/2), FD3(3/3), ID4(2/2)]
+    # Estado Final J2:   [FD3(2/3), ID4(2/2)]
+    test_game.prueba_disparo_segundo_acierto_artillero_j1_a_j2()
 
-    # J2: Disparo de Artillero (Fallo)
+    # Turno actual: J2:
+    # Disparo de Francotirador (Acierto). Hemos avistado el Artillero en C2. Lo matamos
+    # Enfriamiento: Inteligencia
+    # Estado Inicial J1: [MC1(1/1), AC2(2/2), FC3(3/3), IC4(2/2)]
+    # Estado Final J1:   [MC1(1/1), FC3(3/3), IC4(2/2)]
+    # Estado Inicial J2: [FD3(2/3), ID4(2/2)]
+    # Estado Final J2:   [FD3(2/3), ID4(2/2)]
+    test_game.prueba_disparo_acierto_francotirador_j2_a_j1()
 
-    # J1: Inteligencia (Fallo)
+    # Turno actual: J1:
+    # Disparo de Francotirador (Acierto). Matamos francotirador contrario y gana la partida
+    # Enfriamiento: Artillero
+    # Estado Inicial J1: [MC1(1/1), AC2(2/2), FC3(3/3), IC4(2/2)]
+    # Estado Final J1:   [MC1(1/1), AC2(2/2), FC3(3/3), IC4(2/2)]
+    # Estado Inicial J2: [FD3(2/3), ID4(2/2)]
+    # Estado Final J2:   [ID4(2/2)]
+    test_game.prueba_disparo_segundo_acierto_francotirador_j1_a_j2()
 
-    # J2: Curación
-
-    # CHEQUEO ENFRIAMIENTO
-
-    # FINAL DE PARTIDA
-    child.expect(pexpect.EOF)
-    child.wait()
+    print("\n------------- TODAS LAS PRUEBAS SE EJECUTARON SATISFACTORIAMENTE -------------\n")
 
 if __name__ == '__main__':
     main()
