@@ -250,6 +250,22 @@ class TestGame():
         # en el próximo informe
         self.salta_doble_intro()
 
+    def prueba_disparo_acierto_artillero_j1_a_j2(self):
+        # Disparo de Francotirador (Acierto). Ya hemos probado médico en J2. Lo matamos.
+        # Enfriamiento: Disparo artillero
+        # Estado Inicial J1: [MC1(1/1), AC2(2/2), FC3(3/3), IC4(2/2)]
+        # Estado Final J1:   [MC1(1/1), AC2(2/2), FC3(3/3), IC4(2/2)]
+        # Estado Inicial J2: [MD1(1/1), AD2(1/2), FD3(2/3), ID4(2/2)]
+        # Estado Final J2:   [AD2(1/2), FD3(3/3), ID4(2/2)]
+        self.child.expect(ACCIONES_INICIALES_ESPERADAS[ACCIONES_INICIALES_INDICE_FRANCOTIRADOR])
+        self.child.sendline(str(self.get_re_index()))
+        self.child.sendline("D1")
+        # "--------- RESULTADO DE LA ACCIÓN ----------
+        # Medico ha sido eliminado
+        m = EstadoPersonaje("Medico", "-", "Eliminado", 99, 99)
+        ResultadoAccionChequeo(self.child, [m])
+        self.salta_doble_intro()
+
 def main():
     # TODO: set executable configurable
     child = pexpect.spawnu('python ./jugar.py', timeout=1)
@@ -283,9 +299,15 @@ def main():
     # Estado Final J2:   [MD1(1/1), AD2(1/2), FD3(3/3), ID4(2/2)]
     test_game.prueba_curacion_j2()
 
-    # Turno actual: J2:
+    # Turno actual: J1:
+    # Disparo de Francotirador (Acierto). Ya hemos probado médico en J2. Lo matamos.
+    # Enfriamiento: Disparo artillero
     # Estado Inicial J1: [MC1(1/1), AC2(2/2), FC3(3/3), IC4(2/2)]
     # Estado Final J1:   [MC1(1/1), AC2(2/2), FC3(3/3), IC4(2/2)]
+    # Estado Inicial J2: [MD1(1/1), AD2(1/2), FD3(2/3), ID4(2/2)]
+    # Estado Final J2:   [AD2(1/2), FD3(3/3), ID4(2/2)]
+    test_game.prueba_disparo_acierto_francotirador_j1_a_j2()
+
 
     # J1: Inteligencia (Fallo)
     # Estado Inicial J2: [MD1(1/1), AD2(2/2), FD3(3/3), ID4(2/2)]
