@@ -2,6 +2,8 @@ import pexpect
 import sys
 
 POSICIONAMIENTO_ESPERADO = ['(?i)[M,m].dico', '(?i)[A,a]rtillero', '(?i)[F,f]rancotirador', '(?i)[I,i]nteligencia']
+MAPA_PERSONAJES = {"Medico": '[M,m].dico', "Artillero":'[A,a]rtillero',
+                   "Francotirador":'[F,f]rancotirador', "Inteligencia": '[I,i]nteligencia'}
 ACCIONES_INICIALES_ESPERADAS = ['[0-9]{1} {0,}: {0,}[M,m]over.*[M,m].dico',
                                 '[0-9]{1} {0,}: {0,}[M,m]over.*[A,a]rtillero',
                                 '[0-9]{1} {0,}: {0,}[D,d]isparar {1,}[E,e][N,n] {1,}.rea.*([A,a]rtillero)',
@@ -11,7 +13,9 @@ ACCIONES_INICIALES_ESPERADAS = ['[0-9]{1} {0,}: {0,}[M,m]over.*[M,m].dico',
                                 '[0-9]{1} {0,}: {0,}[R,r,]evelar.*[I,i]nteligencia']
 ACCIONES_INICIALES_INDICES = ["1", "2", "3", "4", "5", "6", "7"]
 ACCIONES_INICIALES_INDICE_MOVIMIENTO = ["1", "2", "4", "6"]
-ACCIONES_INICIALES_INDICE_DISPAROS = [2, 4]
+ACCIONES_INICIALES_INDICE_ARTILLERO = 2
+ACCIONES_INICIALES_INDICE_FRANCOTIRADOR = 4
+ACCIONES_INICIALES_INDICE_DISPAROS = [ACCIONES_INICIALES_INDICE_ARTILLERO, ACCIONES_INICIALES_INDICE_FRANCOTIRADOR]
 ACCIONES_INICIALES_INDICE_INTELIGENCIA = 6
 
 FALLO_CELDA_INCORRECTA = ['(?i)[U,u][P,p][S,s].*[I,i][N,n][C,c][O,o][R,r][R,r][E,e][C,c][T,t][A,a,O,o].*\n']
@@ -19,6 +23,12 @@ FALLO_CELDA_OCUPADA = ['(?i)[U,u][P,p][S,s].*[O,o][C,c][U,u][P,p][A,a][D,d][A,a]
 PETICION_CELDA_MOVER = ['(?i)[C,c][E,e][L,l][D,d][A,a].*[M,m][O,o][V,v][E,e][R,r]']
 MENSAJE_NINGUN_PERSONAJE_HERIDO = "(?i)[N,n]ing.n {1,}[P,p]ersonaje {1,}[H,h]a {1,}[S,s]ido {1,}[H,h]erido"
 MENSAJE_NINGUN_PERSONAJE_REVELADO = "(?i)[N,n]ing.n {1,}[P,p]ersonaje {1,}[H,h]a {1,}[S,s]ido {1,}[R,r]evelado"
+MENSAJE_PERSONAJE_HERIDO = "[H,h]a {1,}[S,s]ido {1,}[H,h]erido"
+MENSAJE_PERSONAJE_MUERTO = "[H,h]a {1,}[M,m]uerto"
+MENSAJE_PERSONAJE_ELIMINADO = "[H,h]a {1,}[M,m]uerto"
+
+RESULTADO_ACCION_INICIAL = "[R,r][E,e][S,s][U,u][L,l][T,t][A,a][D,d][O,o] {1,}[D,d][E,e] {1,}[L,l][A,a] {1,}[A,a][C,c][C,c][I,i].[N,n]"
+
 INDICE_ACCIONES_ESPERADAS = ['1', '2', '3', '4']
 INTRO = ['[I,i][N,n][T,t][R,r][O,o]']
 JUGADORES = ["Jugador1", "Jugador2"]
@@ -30,6 +40,42 @@ MOVIMIENTOS_JUGADORES = {"Jugador1": MOVIMIENTOS_JUGADOR_1, "Jugador2": MOVIMIEN
 CELDAS_ERRONEAS = ['E1', 'D5', 'A', '3', '123', 'ABC', 'Z', '#', '']
 POSICIONES_POR_JUGADOR = {"Jugador1": POSICIONES_JUGADOR_1, "Jugador2": POSICIONES_JUGADOR_2}
 MOVIMIENTOS_POR_JUGADOR = {"Jugador1": MOVIMIENTOS_JUGADOR_1, "Jugador2": MOVIMIENTOS_JUGADOR_2}
+
+class EstadoPersonaje():
+    personaje = ""
+    posicion = ""
+    vida_restante = 0
+    situacion = ""
+
+    def __init__(self, personaje, posicion, vida_restante, situacion):
+        self.personaje = personaje
+        self.posicion = posicion
+        self.vida_restante = vida_restante
+        self.situacion = situacion
+
+
+class ResultadoAccionChequeo():
+    child = None
+
+    def get_vida_restante(self, vida_restante):
+        return "\[" + "[V,v][I,i][D,d][A,a] {1,}[R,r][E,e][S,s][T,t][A,a][N,n][T,t][E,e] {0,}: {0,}" + str(vida_restante) + "\]"
+
+    def __init__(self, child, lista_estado_personajes):
+        self.child = child
+        accion_esperada = []
+        accion_esperada.append(RESULTADO_ACCION_INICIAL)
+        # Para cada personaje esperamos
+        # "Artillero ha sido herido en D2 [Vida restante:1]
+        # o "Medico ha sido eliminado"
+        for estado_personaje in lista_estado_personajes:
+            if estado_personaje.situacion == "Muerto":
+                accion_esperada.append(MAPA_PERSONAJES[estado_personaje.personaje] + " {1,}" + MENSAJE_PERSONAJE_ELIMINADO)
+            elif estado_personaje.situacion == "Herido":
+                accion_esperada.append(MAPA_PERSONAJES[estado_personaje.personaje] + " {1,}" + MENSAJE_PERSONAJE_HERIDO + " {1,}[E,e][N,n] {1,}" +\
+                    estado_personaje.posicion + " {1,}" + self.get_vida_restante(estado_personaje.vida_restante))
+        # Chequeo una vez por linea esperada + inicial
+        for accion in range(0, len(accion_esperada)):
+            self.child.expect(accion_esperada)
 
 class TestGame():
     child = None
@@ -134,6 +180,27 @@ class TestGame():
             self.child.expect(MENSAJE_NINGUN_PERSONAJE_REVELADO)
             self.salta_doble_intro()
 
+    def prueba_disparo_acierto_artillero_j1_a_j2(self):
+        # Estado Inicial J2: [MD1(1/1), AD2(2/2), FD3(3/3), ID4(2/2)]
+        # Estado Final J2:   [MD1(1/1), AD2(1/2), FD3(2/3), ID4(2/2)]
+        # Chequeo incorrecto de reporte de inteligencia
+        for j in JUGADORES:
+            # Envio de opcion (disparo artillero/disparo francotirador)
+            self.child.expect(ACCIONES_INICIALES_ESPERADAS[ACCIONES_INICIALES_INDICE_ARTILLERO])
+            self.child.sendline(str(self.get_re_index()))
+            # Nos pide donde disparar, disparamos celda que sabemos ocupada, pero sin matar a Médico
+            self.child.sendline("D2")
+            # Esperamos mensaje:
+            # "--------- RESULTADO DE LA ACCIÓN ----------
+            # Artillero ha sido herido en D2 [Vida restante:1]
+            # Francotirador ha sido herido en D3 [Vida restante:2]
+            a = EstadoPersonaje("Artillero", "D2", 1, "Herido")
+            f = EstadoPersonaje("Francotirador", "D3", 2, "Herido")
+            ResultadoAccionChequeo(self.child, [a,f])
+
+            self.child.expect(MENSAJE_NINGUN_PERSONAJE_REVELADO)
+            self.salta_doble_intro()
+
 def main():
     # TODO: set executable configurable
     child = pexpect.spawnu('python ./jugar.py', timeout=1)
@@ -151,7 +218,10 @@ def main():
     test_game.prueba_disparos_fallidos()
     test_game.prueba_inteligencia_fallida()
 
-    # J2: Disparo de Artillero (Acierto)
+    # Turno actual: J1:
+    # Disparo de Artillero (Acierto). Lo probamos para que se active habilidad Médico J2
+    test_game.prueba_disparo_acierto_artillero_j1_a_j2()
+
     # Estado Inicial J1: [MC1(1/1), AC2(2/2), FC3(3/3), IC4(2/2)]
     # Estado Final J1:   [MC1(1/1), AC2(2/2), FC3(3/3), IC4(2/2)]
 
