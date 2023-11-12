@@ -27,7 +27,7 @@ POSICIONES_JUGADOR_2 = ['B1', 'B2', 'B3', 'B4']
 MOVIMIENTOS_JUGADOR_1 = ['C1', 'C2', 'C3', 'C4']
 MOVIMIENTOS_JUGADOR_2 = ['D1', 'D2', 'D3', 'D4']
 MOVIMIENTOS_JUGADORES = {"Jugador1": MOVIMIENTOS_JUGADOR_1, "Jugador2": MOVIMIENTOS_JUGADOR_2}
-MOVIMIENTOS_INCORRECTOS_JUGADOR = ['E1', 'D5', 'A', '3', '123', 'ABC', 'Z', '#', '']
+CELDAS_ERRONEAS = ['E1', 'D5', 'A', '3', '123', 'ABC', 'Z', '#', '']
 POSICIONES_POR_JUGADOR = {"Jugador1": POSICIONES_JUGADOR_1, "Jugador2": POSICIONES_JUGADOR_2}
 MOVIMIENTOS_POR_JUGADOR = {"Jugador1": MOVIMIENTOS_JUGADOR_1, "Jugador2": MOVIMIENTOS_JUGADOR_2}
 
@@ -70,11 +70,11 @@ class TestGame():
                 i = self.child.expect(ACCIONES_INICIALES_ESPERADAS)
                 self.child.sendline(ACCIONES_INICIALES_INDICE_MOVIMIENTO[i+personaje])
                 siguiente_movimiento_correcto = 0
-                for i in range(0, len(MOVIMIENTOS_INCORRECTOS_JUGADOR)):
+                for i in range(0, len(CELDAS_ERRONEAS)):
                     # Esperamos que pida movimiento
                     self.child.expect(PETICION_CELDA_MOVER)
                     # Mandamos la celda errónea
-                    self.child.sendline(MOVIMIENTOS_INCORRECTOS_JUGADOR[i])
+                    self.child.sendline(CELDAS_ERRONEAS[i])
                     # Esperamos fallo celda incorrecta
                     self.child.expect(FALLO_CELDA_INCORRECTA)
                 # Movimientos A Celda ocupada
@@ -104,6 +104,10 @@ class TestGame():
                 # Envio de opcion (disparo artillero/disparo francotirador)
                 self.child.expect(ACCIONES_INICIALES_ESPERADAS[i])
                 self.child.sendline(str(self.get_re_index()))
+                # Nos pide donde disparar, disparamos a celda erronea
+                for celda in CELDAS_ERRONEAS:
+                    self.child.sendline(celda)
+                    self.child.expect(FALLO_CELDA_INCORRECTA)
                 # Nos pide donde disparar, enviamos celda vacia (cualquiera fila A)
                 self.child.sendline("A1")
                 # Esperamos mensaje "Ningún personaje ha sido herido"
@@ -116,11 +120,14 @@ class TestGame():
         # Estado Inicial J2: [MD1(1/1), AD2(2/2), FD3(3/3), ID4(2/2)]
         # Estado Final J2:   [MD1(1/1), AD2(2/2), FD3(3/3), ID4(2/2)]
         # Chequeo incorrecto de reporte de inteligencia
-        # Se chequea informe y resultado acción
         for j in JUGADORES:
             # Envio de opcion (disparo artillero/disparo francotirador)
             self.child.expect(ACCIONES_INICIALES_ESPERADAS[ACCIONES_INICIALES_INDICE_INTELIGENCIA])
             self.child.sendline(str(self.get_re_index()))
+            # Nos pide donde mirar, miramos celda erronea
+            for celda in CELDAS_ERRONEAS:
+                self.child.sendline(celda)
+                self.child.expect(FALLO_CELDA_INCORRECTA)
             # Nos pide donde mirar, miramos celda vacia con alrededores vacios (cualquiera celda en fila A)
             self.child.sendline("A2")
             # Esperamos mensaje "Ningún personaje ha sido avistado"
@@ -136,8 +143,7 @@ def main():
     test_game.prueba_posicionamiento_jugadores()
     test_game.prueba_movimientos()
 
-    # ACCIONES CON CELDAS ERRÓNEAS
-    # ACCIONES
+    # ACCIONES CON CELDAS ERRONEAS O SIN RIVAL
     # Estado Inicial J1: [MC1(1/1), AC2(2/2), FC3(3/3), IC4(2/2)]
     # Estado Final J1:   [MC1(1/1), AC2(2/2), FC3(3/3), IC4(2/2)]
     # Estado Inicial J2: [MD1(1/1), AD2(2/2), FD3(3/3), ID4(2/2)]
@@ -145,7 +151,7 @@ def main():
     test_game.prueba_disparos_fallidos()
     test_game.prueba_inteligencia_fallida()
 
-    # J2: Disparo de Artillero (Fallo)
+    # J2: Disparo de Artillero (Acierto)
     # Estado Inicial J1: [MC1(1/1), AC2(2/2), FC3(3/3), IC4(2/2)]
     # Estado Final J1:   [MC1(1/1), AC2(2/2), FC3(3/3), IC4(2/2)]
 
@@ -164,7 +170,6 @@ def main():
     # CHEQUEO ENFRIAMIENTO
 
     # FINAL DE PARTIDA
-
     child.expect(pexpect.EOF)
     child.wait()
 
