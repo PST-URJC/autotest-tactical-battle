@@ -35,8 +35,10 @@ MENSAJE_NINGUN_PERSONAJE_HERIDO = "(?i)[N,n]ing.n {1,}[P,p]ersonaje {1,}[H,h]a {
 MENSAJE_NINGUN_PERSONAJE_REVELADO = "(?i)[N,n]ing.n {1,}[P,p]ersonaje {1,}[H,h]a {1,}[S,s]ido {1,}[R,r]evelado"
 MENSAJE_PERSONAJE_HERIDO = "[H,h]a {1,}[S,s]ido {1,}[H,h]erido"
 MENSAJE_PERSONAJE_MUERTO = "[H,h]a {1,}[M,m]uerto"
-MENSAJE_PERSONAJE_ELIMINADO = "[H,h]a {1,}[M,m]uerto"
+MENSAJE_PERSONAJE_ELIMINADO = "[H,h]a {1,}[S,s]ido {1,}[E,e]liminado"
+MENSAJE_PERSONAJE_AVISTADO = "[H,h]a {1,}[S,s]ido {1,}[A,a]vistado"
 MENSAJE_SELECCIONA_PERSONAJE_A_CURAR = "[S,s]elecciona {1,}[E,e]l {1,}[P,p]ersonaje {1,}[A,a] {1,}[C,c]urar"
+MENSAJE_COORDENADAS_ZONA_OBSERVACION = "[I,i]ndica las coordenadas de la esquina superior izquierda de la zona de observaci.n"
 
 RESULTADO_ACCION_INICIAL = "[R,r][E,e][S,s][U,u][L,l][T,t][A,a][D,d][O,o] {1,}[D,d][E,e] {1,}[L,l][A,a] {1,}[A,a][C,c][C,c][I,i].[N,n]"
 
@@ -110,6 +112,9 @@ class ResultadoAccionChequeo():
             elif estado_personaje.situacion == "Herido":
                 accion_esperada.append(MAPA_PERSONAJES[estado_personaje.personaje] + " {1,}" + MENSAJE_PERSONAJE_HERIDO + " {1,}[E,e][N,n] {1,}" +\
                     estado_personaje.posicion + " {1,}" + self.get_vida_restante(estado_personaje.vida_restante))
+            elif estado_personaje.situacion == "Avistado":
+                accion_esperada.append(MAPA_PERSONAJES[estado_personaje.personaje] + " {1,}" + MENSAJE_PERSONAJE_AVISTADO + " {1,}[E,e][N,n] {1,}" +\
+                    estado_personaje.posicion)
         # Chequeo una vez por linea esperada + inicial
         for accion in range(0, len(accion_esperada)):
             self.child.expect(accion_esperada)
@@ -250,7 +255,7 @@ class TestGame():
         # en el próximo informe
         self.salta_doble_intro()
 
-    def prueba_disparo_acierto_artillero_j1_a_j2(self):
+    def prueba_disparo_acierto_francotirador_j1_a_j2(self):
         # Disparo de Francotirador (Acierto). Ya hemos probado médico en J2. Lo matamos.
         # Enfriamiento: Disparo artillero
         # Estado Inicial J1: [MC1(1/1), AC2(2/2), FC3(3/3), IC4(2/2)]
@@ -265,6 +270,26 @@ class TestGame():
         m = EstadoPersonaje("Medico", "-", "Eliminado", 99, 99)
         ResultadoAccionChequeo(self.child, [m])
         self.salta_doble_intro()
+
+    def prueba_avistamiento_j2_a_j1(self):
+        # Avistamiento
+        # Enfriamiento: Medico
+        # Estado Inicial J1: [MC1(1/1), AC2(2/2), FC3(3/3), IC4(2/2)]
+        # Estado Final J1:   [MC1(1/1), AC2(2/2), FC3(3/3), IC4(2/2)]
+        # Estado Inicial J2: [MD1(1/1), AD2(1/2), FD3(2/3), ID4(2/2)]
+        # Estado Final J2:   [AD2(1/2), FD3(3/3), ID4(2/2)]
+        self.child.expect(ACCIONES_INICIALES_ESPERADAS[ACCIONES_INICIALES_INDICE_INTELIGENCIA])
+        self.child.sendline(str(self.get_re_index()))
+        self.child.expect(MENSAJE_COORDENADAS_ZONA_OBSERVACION)
+        self.child.sendline("C2")
+        # "--------- RESULTADO DE LA ACCIÓN ----------
+        # Artillero ha sido avistado en C2
+        # Francotirador ha sido avistado en C3
+        a = EstadoPersonaje("Artillero", "C2", "Avistado", 99, 99)
+        f = EstadoPersonaje("Francotirador", "C3", "Avistado", 99, 99)
+        ResultadoAccionChequeo(self.child, [a,f])
+        self.salta_doble_intro()
+
 
 def main():
     # TODO: set executable configurable
@@ -308,10 +333,14 @@ def main():
     # Estado Final J2:   [AD2(1/2), FD3(3/3), ID4(2/2)]
     test_game.prueba_disparo_acierto_francotirador_j1_a_j2()
 
-
-    # J1: Inteligencia (Fallo)
-    # Estado Inicial J2: [MD1(1/1), AD2(2/2), FD3(3/3), ID4(2/2)]
-    # Estado Final J2:   [MD1(1/1), AD2(2/2), FD3(3/3), ID4(2/2)]
+    # Turno actual: J2:
+    # Chequeo posiciones con inteligencia
+    # Enfriamiento: Medico
+    # Estado Inicial J1: [MC1(1/1), AC2(2/2), FC3(3/3), IC4(2/2)]
+    # Estado Final J1:   [MC1(1/1), AC2(2/2), FC3(3/3), IC4(2/2)]
+    # Estado Inicial J2: [MD1(1/1), AD2(1/2), FD3(2/3), ID4(2/2)]
+    # Estado Final J2:   [AD2(1/2), FD3(3/3), ID4(2/2)]
+    test_game.prueba_avistamiento_j2_a_j1()
 
     # J1: Disparo de Francotirador (Acierto)
 
