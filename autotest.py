@@ -42,6 +42,8 @@ MENSAJE_COORDENADAS_ZONA_OBSERVACION = "[I,i]ndica las coordenadas de la esquina
 MENSAJE_JUGADOR1_GANA_PARTIDA = "(?i)Jugador {0,}1 [H,h]a [G,g]anado [L,l]a [P,p]artida"
 
 RESULTADO_ACCION_INICIAL = "[R,r][E,e][S,s][U,u][L,l][T,t][A,a][D,d][O,o] {1,}[D,d][E,e] {1,}[L,l][A,a] {1,}[A,a][C,c][C,c][I,i].[N,n]"
+INICIO_INFORME = "[I,i][N,n][F,f][O,o][R,r][M,m][E,e]"
+INFORME_NADA_QUE_REPORTAR = "[N,n][A,a][D,d][A,a] {1,}[Q,q][U,u][E,e] {1,}[R,r][E,e][P,p][O,o][R,r][T,t][A,a][R,r]"
 SITUACION_DEL_EQUIPO = "[S,s][I,i][T,t][U,u][A,a][C,c][I,i].[N,n] {1,}[D,d][E,e][L,l] {1,}[E,e][Q,q][U,u][I,i][P,p][O,o]"
 
 INDICE_ACCIONES_ESPERADAS = ['1', '2', '3', '4']
@@ -139,6 +141,37 @@ class ResultadoAccionChequeo():
         # Chequeo una vez por linea esperada + inicial
         for accion in range(0, len(accion_esperada)):
             self.child.expect(accion_esperada)
+
+class ResultadoInformeChequeo():
+    child = None
+
+    def get_vida_restante(self, vida_restante):
+        return "\[" + "[V,v][I,i][D,d][A,a] {1,}[R,r][E,e][S,s][T,t][A,a][N,n][T,t][E,e] {0,}: {0,}" + str(vida_restante) + "\]"
+
+    def __init__(self, child, lista_estado_personajes):
+        self.child = child
+        accion_esperada = []
+        accion_esperada.append(INICIO_INFORME)
+        if not lista_estado_personajes:
+            accion_esperada.append(INFORME_NADA_QUE_REPORTAR)
+        else:
+            # NOTA: esto se podría reusar de alguna forma con la clase anterior, pero para un programa de prueba es digno que esté duplicado
+            # Para cada personaje esperamos
+            # "Artillero ha sido herido en D2 [Vida restante:1]
+            # o "Medico ha sido eliminado"
+            for estado_personaje in lista_estado_personajes:
+                if estado_personaje.situacion == "Muerto":
+                    accion_esperada.append(MAPA_PERSONAJES[estado_personaje.personaje] + " {1,}" + MENSAJE_PERSONAJE_ELIMINADO)
+                elif estado_personaje.situacion == "Herido":
+                    accion_esperada.append(MAPA_PERSONAJES[estado_personaje.personaje] + " {1,}" + MENSAJE_PERSONAJE_HERIDO + " {1,}[E,e][N,n] {1,}" +\
+                        estado_personaje.posicion + " {1,}" + self.get_vida_restante(estado_personaje.vida_restante))
+                elif estado_personaje.situacion == "Avistado":
+                    accion_esperada.append(MAPA_PERSONAJES[estado_personaje.personaje] + " {1,}" + MENSAJE_PERSONAJE_AVISTADO + " {1,}[E,e][N,n] {1,}" +\
+                        estado_personaje.posicion)
+            # Chequeo una vez por linea esperada + inicial
+        for accion in range(0, len(accion_esperada)):
+            self.child.expect(accion_esperada)
+
 
 class TestGame():
     child = None
@@ -272,6 +305,12 @@ class TestGame():
         # Chequeo Situacion Equipo J2:
         # Estado Inicial J2: [MD1(1/1), AD2(1/2), FD3(2/3), ID4(2/2)]
         # Estado Final J2:   [MD1(1/1), AD2(1/2), FD3(3/3), ID4(2/2)]
+        # "--------- INFORME ----------
+        # Artillero ha sido herido en D2 [Vida restante:1]
+        # Francotirador ha sido herido en D3 [Vida restante:2]
+        a = EstadoPersonaje("Artillero", "D2", "Herido", 1, 2)
+        f = EstadoPersonaje("Francotirador", "D3", "Herido", 2, 3)
+        ResultadoInformeChequeo(self.child, [a,f])
         ep = [EstadoPersonaje("Medico", "D1", "-", 1, 1)]
         ep.append(EstadoPersonaje("Artillero", "D2", "-", 1, 2))
         ep.append(EstadoPersonaje("Francotirador", "D3", "-", 2, 3))
@@ -297,6 +336,8 @@ class TestGame():
         # Enfriamiento: Disparo artillero
         # Estado Inicial J1: [MC1(1/1), AC2(2/2), FC3(3/3), IC4(2/2)]
         # Estado Final J1:   [MC1(1/1), AC2(2/2), FC3(3/3), IC4(2/2)]
+        # En el turno anterior el jugador cura, luego informe:nada que reportar
+        ResultadoInformeChequeo(self.child, [])
         ep = [EstadoPersonaje("Medico", "C1", "-", 1, 1)]
         ep.append(EstadoPersonaje("Artillero", "C2", "-", 2, 2))
         ep.append(EstadoPersonaje("Francotirador", "C3", "-", 3, 3))
@@ -320,6 +361,10 @@ class TestGame():
         # Estado Final J1:   [MC1(1/1), AC2(2/2), FC3(3/3), IC4(2/2)]
         # Estado Inicial J2: [AD2(1/2), FD3(3/3), ID4(2/2)]
         # Estado Final J2:   [AD2(1/2), FD3(3/3), ID4(2/2)]
+        # "--------- INFORME ----------
+        # Medico ha sido eliminado
+        m = EstadoPersonaje("Medico", "-", "Eliminado", 0, 0)
+        ResultadoInformeChequeo(self.child, [m])
         ep = [EstadoPersonaje("Artillero", "D2", "-", 1, 2)]
         ep.append(EstadoPersonaje("Francotirador", "D3", "-", 3, 3))
         ep.append(EstadoPersonaje("Inteligencia", "D4", "-", 2, 2))
@@ -342,6 +387,12 @@ class TestGame():
         # Enfriamiento: Francotirador
         # Estado Inicial J1: [MC1(1/1), AC2(2/2), FC3(3/3), IC4(2/2)]
         # Estado Final J1:   [MC1(1/1), AC2(2/2), FC3(3/3), IC4(2/2)]
+        # "--------- INFORME ----------
+        # Artillero ha sido avistado en C2
+        # Francotirador ha sido avistado en C3
+        a = EstadoPersonaje("Artillero", "C2", "Avistado", 0, 0)
+        f = EstadoPersonaje("Francotirador", "C3", "Avistado", 0, 0)
+        ResultadoInformeChequeo(self.child, [a,f])
         ep = [EstadoPersonaje("Medico", "C1", "-", 1, 1)]
         ep.append(EstadoPersonaje("Artillero", "C2", "-", 2, 2))
         ep.append(EstadoPersonaje("Francotirador", "C3", "-", 3, 3))
@@ -370,6 +421,12 @@ class TestGame():
         # Estado Final J1:   [MC1(1/1), FC3(3/3), IC4(2/2)]
         # Estado Final J2:   [FD3(2/3), ID4(2/2)]
         # Estado Final J2:   [FD3(2/3), ID4(2/2)]
+        # "--------- INFORME ----------
+        # Artillero ha sido eliminado
+        # Francotirador ha sido herido en D3 [Vida restante:1]
+        a = EstadoPersonaje("Artillero", "D2", "Eliminado", 1, 2)
+        f = EstadoPersonaje("Francotirador", "D3", "Herido", 2, 3)
+        ResultadoInformeChequeo(self.child, [a,f])
         ep = [EstadoPersonaje("Francotirador", "D3", "-", 2, 3)]
         ep.append(EstadoPersonaje("Inteligencia", "D4", "-", 2, 2))
         SituacionEquipoChequeo(self.child, ep)
@@ -388,6 +445,10 @@ class TestGame():
         # Enfriamiento: Artillero
         # Estado Inicial J1: [MC1(1/1), FC3(3/3), IC4(2/2)]
         # Estado Final J1:   [MC1(1/1), FC3(3/3), IC4(2/2)]
+        # "--------- INFORME ----------
+        # Artillero ha sido eliminado
+        a = EstadoPersonaje("Artillero", "-", "Eliminado", 0, 0)
+        ResultadoInformeChequeo(self.child, [a])
         ep = [EstadoPersonaje("Medico", "C1", "-", 1, 1)]
         ep.append(EstadoPersonaje("Francotirador", "C3", "-", 3, 3))
         ep.append(EstadoPersonaje("Inteligencia", "C4", "-", 2, 2))
