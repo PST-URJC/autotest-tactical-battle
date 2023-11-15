@@ -465,8 +465,10 @@ class TestGame():
         self.child.expect(MENSAJE_JUGADOR1_GANA_PARTIDA)
 
 def main():
-    # TODO: set executable configurable
-    child = pexpect.spawnu('python ./jugar.py', timeout=1)
+    juego_principal = './jugar.py'
+    if len(sys.argv) > 1:
+        juego_principal = sys.argv[1]
+    child = pexpect.spawnu('python ' + juego_principal, timeout=1)
 
     test_game = TestGame(child)
     test_game.prueba_posicionamiento_jugadores()
